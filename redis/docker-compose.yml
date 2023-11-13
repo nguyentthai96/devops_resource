@@ -17,6 +17,15 @@ services:
     volumes:
       - ./p3x-redis-ui-settings:/settings
 
+  redis-redisinsight-ui: # was called redis-desktop-manager
+    image: redislabs/redisinsight:latest
+    command: chown -R 1001 redisinsight
+    depends_on:
+      - redis-master
+    #links
+    ports:
+      - 28001:8001
+
   redis-master:
     image: redis:7.2.3
     environment:
