@@ -17,6 +17,20 @@ services:
     volumes:
       - ./p3x-redis-ui-settings:/settings
 
+  redis-commander:
+    container_name: redis-commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    hostname: redis-commander
+    depends_on:
+      - redis-master
+    environment:
+      - REDIS_HOSTS=docker:redis-master:6379
+    ports:
+      - 28002:8081
+  #    volumes:
+  #      - "./.redis-commander:/redis-commander/config:rw"
+
   redis-redisinsight-ui: # was called redis-desktop-manager
     image: redislabs/redisinsight:latest
     command: chown -R 1001 redisinsight
