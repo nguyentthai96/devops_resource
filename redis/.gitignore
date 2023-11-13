@@ -1,0 +1,7 @@
+### Redis template
+# Ignore redis binary dump (dump.rdb) files
+
+*.rdb
+
+.data/
+.data-slave/

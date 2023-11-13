@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+
+  #  app:
+  #    image: some-image
+  #    links:
+  #      - redis-sentinel
+
+  redis-ui:
+    image: patrikx3/p3x-redis-ui:latest
+    depends_on:
+      - redis-master
+    #links
+    ports:
+      - 7843:7843
+    volumes:
+      - ./p3x-redis-ui-settings:/settings
+
+  redis-master:
+    image: redis:7.2.3
+    environment:
+      #      - REDIS_REPLICATION_MODE=master
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      #      - REDIS_PASSWORD=Str0ng_passw0rd
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+    ports:
+      - "6379:6379"
+    volumes:
+      - "./.data:/data"
+
+  redis-slave:
+    image: redis:7.2.3
+    command: redis-server --slaveof redis-master 6379
+    #environment
+    links:
+      - redis-master
+    volumes:
+      - "./.data-slave:/data"
+
+  # Instance 1
+  redis-sentinel:
+    build:
+      context: ./redis-sentinel
+    links:
+      - redis-master
+
+  # Instance 2
+  redis-sentinel2:
+    build:
+      context: ./redis-sentinel
+    links:
+      - redis-master
+
+  # Instance 3
+  redis-sentinel3:
+    build:
+      context: ./redis-sentinel
+    links:
+      - redis-master
+
+
+#volumes:
+#  redis_data:
+#    driver: local
+
+---
+# Reference
+#https://www.developers-notebook.com/development/using-redis-sentinel-with-docker-compose/
+#Launch the containers using:
+# docker-compose up --scale redis-sentinel=3 -d
+#Redis UI - Dashboard can be accessed by the follow url   http://localhost:7843/
