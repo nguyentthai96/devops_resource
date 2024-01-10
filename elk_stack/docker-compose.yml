@@ -1,0 +1,72 @@
+version: '3'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+    ports:
+      - 9200:9200
+    networks:
+      - elastic
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.10.0
+    container_name: logstash
+    ports:
+      - 5044:5044
+    volumes:
+      - ./logstash-config/:/usr/share/logstash/pipeline/
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.10.0
+    container_name: kibana
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic
+
+  prometheus:
+    image: prom/prometheus:v2.26.1
+    container_name: prometheus
+    volumes:
+      - ./prometheus-config/:/etc/prometheus/
+    ports:
+      - 9090:9090
+    networks:
+      - elastic
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - 3000:3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - elastic
+
+networks:
+  elastic:
+  # https://medium.com/@kelvi030117/monitoring-and-logging-stack-with-docker-compose-a638e115ef77
+  # https://github.com/KelviManavadaria-17/Monitoring-and-Logging-Stack-with-Docker-Compose
+  # https://computingforgeeks.com/run-elastic-stack-elk-on-docker/
+  #Elasticsearch – with ports:
+  #9200: Elasticsearch HTTP
+  #9300: Elasticsearch TCP transport
+  #Logstash – with ports:
+  #5044: Logstash Beats input
+  #5000: Logstash TCP input
+  #9600: Logstash monitoring API
+#Kibana – with port 5601
+#   git clone https://github.com/deviantony/docker-elk.git
