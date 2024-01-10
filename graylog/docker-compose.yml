@@ -1,0 +1,27 @@
+version: "3"
+networks:
+  logging:
+services:
+  logspout:
+    image: gliderlabs/logspout:latest
+    networks:
+      - logging
+    ports:
+      - 8000:80
+    volumes:
+      - /etc/hostname:/etc/host_hostname:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      syslog://svt2-logger.am2.cloudra.local:514
+    #    syslog://192.168.10.20:8514
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 256M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+
+# https://hometechhacker.com/centralizing-docker-logging-using-logspout-and-graylog/
