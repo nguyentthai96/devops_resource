@@ -1,0 +1,58 @@
+version: "3"
+
+services:
+  loki:
+    image: grafana/loki:2.8.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - loki
+    volumes:
+      - ./loki-data:/loki # Loki persistent data folder
+      - ./config-loki:/etc/loki # Loki config folder
+
+  promtail:
+    image: grafana/promtail:2.8.0
+    volumes:
+      - /data/compose/nginx/logs/:/var/log # path to your NPM logs
+      - ./config-promtail/config.yaml:/etc/promtail/config.yaml # Promtail config folder
+    networks:
+      - loki
+
+  grafana:
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=false # disable anonymous login on Grafana
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+        - name: Loki
+          type: loki
+          access: proxy 
+          orgId: 1
+          url: http://loki:3100
+          basicAuth: false
+          isDefault: true
+          version: 1
+          editable: false
+        EOF
+        /run.sh
+    image: grafana/grafana:9.3.13 # keep this fix version of Grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - loki
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+
+networks:
+  loki:
+
+
+#    https://medium.com/@williamdonze/grafana-monitor-nginx-proxy-manager-website-4d03b60c761f
