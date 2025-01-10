@@ -1,63 +1,175 @@
-version: '3'
+version: "3.9"
 
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION-latest}
     container_name: elasticsearch
+    restart: unless-stopped
     environment:
+      # Use single node discovery in order to disable production mode and avoid bootstrap checks.
+      # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
       - discovery.type=single-node
+      - node.name=elasticsearch
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      # Bootstrap password. Used to initialize the keystore during the initial startup of Elasticsearch. Ignored on subsequent runs.
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-}
+      # https://ytubl.ink/3BPe # password same bin/elasticsearch-setup-passwords interactive
+      # Here below config will apply into /usr/share/elasticsearch/config/elasticsearch.yml
+      - xpack.security.enabled=true
+      - xpack.security.enrollment.enabled = true
+      - xpack.security.http.ssl.enabled = false # false is config http
+      # Backup data snapshots
+      - path.repo=/usr/share/elasticsearch/snapshots
     ports:
       - 9200:9200
+      - 9300:9300
     networks:
       - elastic
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data:rw
+      - ./elasticsearch/snapshots:/usr/share/elasticsearch/snapshots
+  #      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z
+  #    command: ["sh", "-c", "/usr/share/elasticsearch/bin/init-user.sh"]
+  #   entrypoint is run before contain running
+  #   entrypoint: ["/bin/bash", "-c", "if [ ! -f /tmp/init-marker ]; then /docker-entrypoint-initdb.d/init-user.sh && touch /tmp/init-marker; fi && docker-entrypoint.sh"]
 
   logstash:
-    image: docker.elastic.co/logstash/logstash:7.10.0
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION-latest}
     container_name: logstash
+    restart: unless-stopped
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+      - LOGSTASH_INTERNAL_PASSWORD=${LOGSTASH_INTERNAL_PASSWORD:-}
+      - XPACK_MANAGEMENT_ENABLED=false # need Upgrade license
+      - XPACK_SECURITY_ENABLED=true
+      - XPACK_MANAGEMENT_ELASTICSEARCH_HOSTS=http://elasticsearch:9200/
+      - XPACK_MANAGEMENT_ELASTICSEARCH_USERNAME=elastic
+      - XPACK_MANAGEMENT_ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-}
+      - XPACK_MONITORING_ENABLED=false
     ports:
       - 5044:5044
-    volumes:
-      - ./logstash-config/:/usr/share/logstash/pipeline/
+      - 50000:50000/tcp
+      - 50000:50000/udp
+      - 9600:9600
+      - 12201:12201
+      - 18888:18888
     depends_on:
       - elasticsearch
     networks:
       - elastic
+    volumes:
+      #      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro,Z
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro,Z
+  #      - logstash/data:/usr/share/logstash/data
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.10.0
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION-latest}
     container_name: kibana
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
+      # Change this to true if you want to sent telemetry data to kibana developers
+      - TELEMETRY_ENABLED=false
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+      - KIBANA_SYSTEM_PASSWORD=${KIBANA_PASSWORD}
+    #      - SERVER_PUBLICBASEURL=http://kibana.cpbank.kr
     ports:
-      - 5601:5601
+      - ${KIBANA_PORT}:5601
     depends_on:
       - elasticsearch
+    labels:
+      # Traefik
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # Routers
+      - "traefik.http.routers.kibana.rule=Host(`kibana.localhost`) || Host(`kibana.cpbank.kr`)"
+      - "traefik.http.routers.kibana.entrypoints=web"
+      - "traefik.http.services.kibana.loadbalancer.server.port=5601"
     networks:
       - elastic
+      - traefik
+  #    configs:
+  #      - source: kibana_config
+  #        target: /usr/share/kibana/config/
+  #        uid: '103'
+  #        gid: '103'
+  #        mode: 0440
+  #    volumes:
+  #      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml
+  #      - kibana/data:/usr/share/kibana/data
+
 
   prometheus:
-    image: prom/prometheus:v2.26.1
+    image: prom/prometheus:v3.0.1
     container_name: prometheus
-    volumes:
-      - ./prometheus-config/:/etc/prometheus/
+    restart: unless-stopped
+    #    command:
+    #      - --config.file=/etc/prometheus/prometheus.yml
     ports:
       - 9090:9090
     networks:
       - elastic
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./prometheus/config/:/etc/prometheus/:ro,z
+      #      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider localhost:9090 || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    ports:
-      - 3000:3000
+    restart: unless-stopped
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
-    depends_on:
-      - prometheus
+    ports:
+      - 3000:3000
     networks:
       - elastic
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: curl --fail localhost:3000
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 networks:
   elastic:
+    external: false
+    driver: bridge
+  traefik:
+    name: traefik
+    external: true
+#configs:
+#  kibana_config:
+#    file: ./kibana/config/kibana.yml
+
+volumes:
+  init-marker:
+  prometheus_data:
+  elasticsearch_data:
+    driver: local
+    external: false
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/elasticsearch/data
+
+  #  =====================================================================================================================
+  #  =====================================================================================================================
   # https://medium.com/@kelvi030117/monitoring-and-logging-stack-with-docker-compose-a638e115ef77
   # https://github.com/KelviManavadaria-17/Monitoring-and-Logging-Stack-with-Docker-Compose
   # https://computingforgeeks.com/run-elastic-stack-elk-on-docker/
@@ -70,3 +182,20 @@ networks:
   #9600: Logstash monitoring API
 #Kibana – with port 5601
 #   git clone https://github.com/deviantony/docker-elk.git
+#    https://viblo.asia/p/tich-hop-elasticsearch-va-kibana-vao-docker-compose-Az45bymqlxY
+#  http://es-container:920 với es-container là tên container -- service name docker-compose
+#Sau khi thực hiện run Kibana và mở browser ở địa chỉ http://localhost:5601
+
+# Native install https://episyche.com/blog/how-to-configure-elasticsearch-and-kibana-setup
+# Kibana user management https://www.youtube.com/watch?v=aTOuD4Aj6BU
+# https://www.elastic.co/blog/getting-started-with-the-elastic-stack-and-docker-compose
+# Init password  --> https://www.elastic.co/guide/en/elasticsearch/reference/current/setup-passwords.html
+#bin/elasticsearch-setup-passwords interactive
+# https://www.studytonight.com/post/log4j2-jsonlayout-properties-with-examples
+# https://github.com/logfellow/logstash-logback-encoder#udp-appender
+# BACKUP data https://medium.com/@peterselvaponseelan/elastic-search-data-snap-and-restore-using-shared-file-system-docker-compose-00172e55c813
+# https://khanhicetea.com/posts/backup-and-restore-elasticsearch-using-docker/
+# snapshots  https://medium.com/@harshvardhan.singh/snapshot-restore-data-for-elasticsearch-on-docker-86c048d5246f#id_token=eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg5Y2UzNTk4YzQ3M2FmMWJkYTRiZmY5NWU2Yzg3MzY0NTAyMDZmYmEiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiIyMTYyOTYwMzU4MzQtazFrNnFlMDYwczJ0cDJhMmphbTRsamRjbXMwMHN0dGcuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiIyMTYyOTYwMzU4MzQtazFrNnFlMDYwczJ0cDJhMmphbTRsamRjbXMwMHN0dGcuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTIyMDMwNjcwMzkyNzY1MDY0NTIiLCJlbWFpbCI6Im5ndXllbnR0aGFpOTZAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5iZiI6MTczNjEzMjU5OSwibmFtZSI6IlRow6BuaCBUaMOhaSBOZ3V54buFbiIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NLZEYwWUpJREhBMUhWNGpTalRsLTBfUVhSRVNMZjNjZ2dLNjVzYkZ6Zk81akFtYkM2UD1zOTYtYyIsImdpdmVuX25hbWUiOiJUaMOgbmggVGjDoWkiLCJmYW1pbHlfbmFtZSI6Ik5ndXnhu4VuIiwiaWF0IjoxNzM2MTMyODk5LCJleHAiOjE3MzYxMzY0OTksImp0aSI6Ijc1NWZmNzdhZWFhZWUyNGFmZTA1ODVkNmNlMTQ0MjM0NmMxNGY4ODIifQ.rsmAChVEIRNHDMXYALg2OO1B5hmHBmvJPUrCV8jiLvmUz4Cq9cnYNMfaRHFnqVQqrkpx8-jbJG9gjdAG9v5AdlJKg246_Eeq8t0Y7XVy4JXuGv3GZCdug8B0WWJhi6LyYv00mlcPI-n1sqwVHU3IHbf69VOxqpznUwFYmLxNfbqALGOQDtRUdMdhdV7nRJlUACQyRc8GrOkZsaYIZVMzr35reS-fYgTu0SMlKGF6FGx7QxQE4fyksCWPrBV0IqPR5vecFfoUtnIVlhk6K8t7TXeCxC02sU3GpdKHg_oO4o2XggmRGzx6YzQAQaLKgWMyYJSNDyM6SxKtllQSw3pFcQ
+
+# Test log
+#  echo '{"timestamp":"2025-09-23T15:00:00","level":"INFO","logger":"TestLogger","message":"Hello from test log","appName":"CPBankMbApp"}' | nc localhost 50000
