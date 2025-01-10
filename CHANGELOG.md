@@ -2,6 +2,7 @@
 ---
 ---
 
+
 ## [0.0.1](https://github.com/nguyentthai96/devops_resource/tree/0.0.1) - 2023-11-13 [Developing](https://github.com/nguyentthai96/devops_resource/compare/0.0.0...0.0.1)
 
 ### Added
@@ -11,6 +12,8 @@
   [@reference](https://medium.com/@andrea.gennusa/the-easiest-https-dashboard-for-every-home-lab-bc46f0d98f04)
 - Add Traefik and SWAG proxy
 - Prometheus agent grafana alert-manager, loki, elk stack
+- Add Portainer dashboard container
+
 ---
 
 ## [0.0.0](https://github.com/nguyentthai96/devops_resource/tree/0.0.0) - 2023-11-12 [RELEASE]
