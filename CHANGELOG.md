@@ -9,6 +9,7 @@
 - [Nginx proxy manager](https://medium.com/@williamdonze/grafana-monitor-nginx-proxy-manager-website-4d03b60c761f) and
   monitor with [grafana loki](https://github.com/williamdonze/nginx-proxy-manager-grafana/blob/main/websites.json)
   [@reference](https://medium.com/@andrea.gennusa/the-easiest-https-dashboard-for-every-home-lab-bc46f0d98f04)
+- Add Traefik and SWAG proxy
 - Prometheus agent grafana alert-manager, loki, elk stack
 ---
 

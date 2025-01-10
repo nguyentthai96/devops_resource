@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+
+  traefik:
+    image: "traefik:v3.2"
+    command:
+      - "--accesslog=true"
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--tracing=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.web_secure.address=:8443"
+      - "--entryPoints.web_admin.address=:8888"
+      # Redirect to https; to is set --entryPoints..address(port)
+      #      - --entrypoints.websecure.http.tls=true
+      #      - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
+      #      - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
+      # Setting acme  Let's Encrypt
+    #      - "--certificatesResolvers.lets-encrypt.acme.email=ntthai@nttco.com"
+    #      - "--certificatesResolvers.lets-encrypt.acme.storage=acme.json"
+    #      - "--certificatesResolvers.lets-encrypt.acme.tlsChallenge=true"
+    #      - "traefik.http.middlewares.api.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/"
+    ports:
+      - "80:80" # HTTP traffic
+      - "8443:8443" # HTTP traffic
+      #      - "8080:8080" # Traefik dashboard
+      - "8888:8888" # Traefik dashboard
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.api.rule=Host(`traefik_dashboard.localhost`)"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.entrypoints=web_admin"
+      - "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$$apr1$$4b1l7Q2Y$$hsJPda42bw96u/dek37SB0" # NtT.1995
+    networks:
+      - traefik
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      # Setting acme  Let's Encrypt
+  #      - "./acme.json:/acme.json:ro"
+
+  whoami: # service test whoami
+    image: "traefik/whoami"
+    labels:
+      # Traefik
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"  # network join common is traefik, so others container will set networks: - traefik to join
+      # Routers
+      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`) || Host(`whoami.cpbank.kr`)"
+      - "traefik.http.routers.whoami.entrypoints=web,web_secure" #configuration inside traefik stack --entryPoints...(port)
+      #      - "traefik.http.routers.whoami.rule=Host(`$SWARM_HOST`) && PathPrefix(`/service-path`)"
+      #      - "traefik.http.routers.whoami.service=whoami"
+      #      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+      #      - "traefik.http.routers.whoami.middlewares=strip-path-prefix" # we use this to strip the /service-path/... part off the request so all requests hit / inside our containers (no need to worry about that on the API side)
+      # Services
+    #      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    name: traefik
+    external: false
+    driver: overlay
+    #    driver: bridge
+    attachable: true
+
+#    https://stackoverflow.com/questions/71972682/traefik-docker-different-docker-compose-yml-files
+#   https://github.com/bluepuma77/traefik-best-practice/blob/main/traefik-external-forward/docker-compose.yml
+

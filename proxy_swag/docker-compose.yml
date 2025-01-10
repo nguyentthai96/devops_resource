@@ -1,0 +1,43 @@
+version: "3.9"
+services:
+  swag:
+    image: lscr.io/linuxserver/swag
+    container_name: swag
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      # - TZ=Europe/London
+      - URL=cpbank.kr
+      - SUBDOMAINS=www,
+      - VALIDATION=http
+      #      - CERTPROVIDER= #optional
+      - DNSPLUGIN=cloudflare #optional
+    #      - EMAIL=<e-mail> #optional
+    #      - ONLY_SUBDOMAINS=false #optional
+    #      - EXTRA_DOMAINS=<extradomains> #optional
+    #      - STAGING=false #optional
+    ports:
+      - 443:443
+      - 80:80 #optional
+    volumes:
+      - ./appdata/config:/config
+
+  mariadb:
+    image: lscr.io/linuxserver/mariadb
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - MYSQL_ROOT_PASSWORD=mariadbpassword
+      #      - TZ=Europe/London
+      - MYSQL_DATABASE=WP_database
+      - MYSQL_USER=WP_dbuser
+      - MYSQL_PASSWORD=WP_dbpassword
+    volumes:
+      - ./aptalca/appdata/mariadb:/config
