@@ -1,12 +1,26 @@
 {
-  "update": "2022-10-07T14:18:28.315Z",
-  "list": [
-    {
-      "name": "sentinels-setup",
-      "host": "redis-master",
-      "port": 6379,
-      "password": "",
-      "id": "unique"
-    }
-  ]
+    "update": "2024-10-18T09:46:53.950Z",
+    "list": [
+        {
+            "name": "sentinels-setup",
+            "host": "redis-master",
+            "port": 6379,
+            "password": "",
+            "id": "unique"
+        },
+        {
+            "name": "vnpay",
+            "host": "10.122.119.12",
+            "port": 26379,
+            "askAuth": false,
+            "username": "default",
+            "id": "P3Xid532540f92910100003cf6e3727e3b6",
+            "tlsWithoutCert": false,
+            "tlsRejectUnauthorized": true,
+            "cluster": false,
+            "nodes": [],
+            "password": "YKvedyW3H6PUX8",
+            "readonly": true
+        }
+    ]
 }

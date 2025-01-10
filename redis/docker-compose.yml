@@ -2,11 +2,6 @@ version: '3.8'
 
 services:
 
-  #  app:
-  #    image: some-image
-  #    links:
-  #      - redis-sentinel
-
   redis-ui:
     image: patrikx3/p3x-redis-ui:latest
     depends_on:
@@ -32,13 +27,11 @@ services:
   #      - "./.redis-commander:/redis-commander/config:rw"
 
   redis-redisinsight-ui: # was called redis-desktop-manager
-    image: redislabs/redisinsight:latest
-    command: chown -R 1001 redisinsight
+    image: redis/redisinsight:latest
     depends_on:
       - redis-master
-    #links
     ports:
-      - 28001:8001
+      - 5540:5540
 
   redis-master:
     image: redis:7.2.3
