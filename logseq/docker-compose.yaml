@@ -1,0 +1,118 @@
+version: "3.9"
+
+services:
+  logseq:
+    image: ghcr.io/logseq/logseq-webapp:latest
+    container_name: logseq
+    ports:
+      - 7022:80
+    restart: unless-stopped
+
+
+  outline:
+    image: docker.getoutline.com/outlinewiki/outline:latest
+    env_file: ./docker.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - storage-data:/var/lib/outline/data
+    depends_on:
+      - postgres
+      - redis
+
+  redis:
+    image: redis
+    env_file: ./docker.env
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis.conf:/redis.conf
+    command: [ "redis-server", "/redis.conf" ]
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 30s
+      retries: 3
+
+  postgres:
+    image: postgres
+    restart: on-failure
+    env_file: ./docker.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-d", "outline", "-U", "user" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      POSTGRES_USER: 'user'
+      POSTGRES_PASSWORD: 'pass'
+      POSTGRES_DB: 'outline'
+      POSTGRES_MULTIPLE_DATABASES: 'joplin'
+
+
+  https-portal:
+    image: steveltn/https-portal
+    env_file: ./docker.env
+    ports:
+      - '8089:80'
+      - '7443:443'
+    links:
+      - outline
+    restart: always
+    volumes:
+      - https-portal-data:/var/lib/https-portal
+    healthcheck:
+      test: [ "CMD", "service", "nginx", "status" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      DOMAINS: 'docs.nttco.com -> http://outline:3000'
+      STAGE: 'production'
+      WEBSOCKET: 'true'
+      CLIENT_MAX_BODY_SIZE: '0'
+
+
+
+  app:
+    image: joplin/server:latest
+    depends_on:
+      - postgres
+    ports:
+      - "22300:22300"
+    restart: unless-stopped
+    environment:
+      - APP_PORT=22300
+      - APP_BASE_URL=${APP_BASE_URL}
+      - DB_CLIENT=pg
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - SUPABASE_PASSWORD=${SUPABASE_PASSWORD:-root}
+      - POSTGRES_DATABASE=${POSTGRES_DATABASE:-joplin}
+volumes:
+  https-portal-data:
+  storage-data:
+  database-data:
+  postgres_data:
+  minio_data:
+
+#     whiteboard https://github.com/excalidraw/excalidraw realtime sharing whiteboard.
+
+
+#  docker run --rm \
+#  -v $HOME/.Xauthority:/root/.Xauthority:rw \
+#  -v /tmp/.X11-unix:/tmp/.X11-unix \
+#  -v /dev/dri:/dev/dri \
+#  -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket \
+#  -v appflowy-data:/home/appflowy \
+#  -e DISPLAY=${DISPLAY} \
+#  appflowyio/appflowy_client:main
+
+
