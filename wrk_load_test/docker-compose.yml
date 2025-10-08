@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  wrk_benmark:
+    image: williamyeh/wrk
+    restart: unless-stopped     # or "always"
+    # command: /bin/sh -c "/data/load_test.sh"
+    # command: --threads 256 --connections 512 --duration 300s --timeout 62s -s /data/curl.lua http://127.0.0.1:15001/v1/process
+    command: --threads 32 --connections 256 --duration 300000s --timeout 60002s -s /data/curl.lua http://localhost:3000/sign-in
+    # --timeout < --duration
+
+    volumes:
+      - ./data/load_test.sh:/data/load_test.sh
+      - ./data/curl.lua:/data/curl.lua
+      - ./data/load_test.sh:/docker-entrypoint-initdb.d/init.sh
+      - ./data/curl.lua:/docker-entrypoint-initdb.d/curl.lua
+      # entrypoint:
+      #- docker-entrypoint.sh
+      # - init
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+volumes:
+  data:
+
+
+# https://github.com/William-Yeh/docker-wrk
