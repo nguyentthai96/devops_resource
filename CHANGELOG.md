@@ -13,6 +13,7 @@
 - Add Traefik and SWAG proxy
 - Prometheus agent grafana alert-manager, loki, elk stack
 - Add Portainer dashboard container
+- Wiremock mock API response simulator
 
 ---
 
