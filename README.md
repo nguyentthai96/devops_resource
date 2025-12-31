@@ -23,6 +23,17 @@ docker-compose --version
 ```
 
 Information data domain
+- Main domain: nttco.com www.nttco.com > nttdev.com www.nttdev.com
+- Test domain: ntthai.com www.ntthai.com > nttthaidev.com
+- Personal domain: thaint.net wwww.thaint.net
+
+Ports definition:
+
+- 80, 8080, 443 8443 port http/https
+- 8888 is Port dashboard admin proxy traefik (default 8080)
+- 3300 is port Grafana (default 3000)
+
+Information data domain
 
 - Main domain: nttco.com www.nttco.com > nttdev.com www.nttdev.com
 - Test domain: ntthai.com www.ntthai.com > nttthaidev.com

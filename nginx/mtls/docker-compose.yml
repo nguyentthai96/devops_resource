@@ -1,0 +1,30 @@
+version: '3.3'
+services:
+  nginx:
+    image: nginx:stable-alpine
+    restart: always # option -NTT- auto restart if error
+    #        restart: unless-stopped     # or "always"
+    command: /bin/sh -c "nginx -g 'daemon off;'"
+    networks:
+      - nginx_net
+    #NTT ipc: host
+    # network_mode: host
+    ports:
+      #- 443:443
+      - 8443:8443
+    volumes:
+      - ./certs/ca.key:/etc/nginx/certs/ca.key
+      - ./certs/ca.crt:/etc/nginx/certs/ca.crt
+      - ./certs/ca_rsa.key:/etc/nginx/certs/ca_rsa.key
+      - ./certs/server.key:/etc/nginx/certs/server.key
+      - ./certs/server.crt:/etc/nginx/certs/server.crt
+      - ./nginx.mtls.conf:/etc/nginx/conf.d/api_acledabank.conf
+      - ./certs/passphrase:/etc/nginx/certs/passphrase
+#            - ./docker_data:/var/data
+
+#volumes:
+#    docker_data:
+
+networks:
+  nginx_net:
+    driver: bridge
