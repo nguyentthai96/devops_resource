@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  hazelcast:
+    image: hazelcast/hazelcast
+    ports:
+      - "5701:5701"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  management-center:
+    image: hazelcast/management-center
+    ports:
+      - "8082:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - MC_DEFAULT_CLUSTER=dev
+      - MC_DEFAULT_CLUSTER_MEMBERS=hazelcast
